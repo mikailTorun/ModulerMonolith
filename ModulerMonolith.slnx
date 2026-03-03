@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="ModulerMonolith.Api/ModulerMonolith.Api.csproj" />
+  <Project Path="ModulerMonolith.Core/ModulerMonolith.Core.csproj" />
+  <Project Path="ModulerMonolith.Infrastructure/ModulerMonolith.Infrastructure.csproj" />
+  <Folder Name="/Modules/">
+    <Project Path="Modules/Auth/Module.Auth.csproj" />
+    <Project Path="Modules/Product/Module.Product.csproj" />
+  </Folder>
+</Solution>
