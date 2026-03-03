@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ModulerMonolith.Infrastructure\ModulerMonolith.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Auth\Module.Auth.csproj" />
+    <ProjectReference Include="..\Modules\Order\Module.Order.csproj" />
     <ProjectReference Include="..\Modules\Product\Module.Product.csproj" />
   </ItemGroup>
 

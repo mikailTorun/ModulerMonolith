@@ -1,0 +1,148 @@
+{
+  "name": "OrderCreated Saga",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "modulermonolith-events",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "modulermonolith-events"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-event-type",
+              "leftValue": "={{ $json.body.eventType }}",
+              "rightValue": "OrderCreated",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-event-type",
+      "name": "Is OrderCreated?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-amount",
+              "leftValue": "={{ $json.body.payload.totalAmount }}",
+              "rightValue": 50000,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "saga-check",
+      "name": "Saga: Stock Check (totalAmount > 50000?)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8080/api/auth/token",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "username", "value": "admin" },
+            { "name": "password", "value": "Admin123!" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-token",
+      "name": "Get Auth Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 120]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=http://api:8080/api/orders/{{ $('Saga: Stock Check (totalAmount > 50000?)').item.json.body.payload.orderId }}/cancel",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cancel-order",
+      "name": "Compensate: Cancel Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 120]
+    },
+    {
+      "parameters": {},
+      "id": "success-path",
+      "name": "Order OK (no action)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [900, 320]
+    },
+    {
+      "parameters": {},
+      "id": "ignore-other-events",
+      "name": "Ignore Other Events",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [680, 420]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Is OrderCreated?", "type": "main", "index": 0 }]]
+    },
+    "Is OrderCreated?": {
+      "main": [
+        [{ "node": "Saga: Stock Check (totalAmount > 50000?)", "type": "main", "index": 0 }],
+        [{ "node": "Ignore Other Events", "type": "main", "index": 0 }]
+      ]
+    },
+    "Saga: Stock Check (totalAmount > 50000?)": {
+      "main": [
+        [{ "node": "Get Auth Token", "type": "main", "index": 0 }],
+        [{ "node": "Order OK (no action)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Auth Token": {
+      "main": [[{ "node": "Compensate: Cancel Order", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-03-03T00:00:00.000Z",
+  "versionId": "1"
+}

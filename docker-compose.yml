@@ -74,6 +74,7 @@ services:
       Keycloak__Realm: modulermonolith
       Keycloak__ClientId: modulermonolith
       Seq__ServerUrl: http://seq:5341
+      N8n__WebhookUrl: http://n8n:5678/webhook/modulermonolith-events
     depends_on:
       postgres:
         condition: service_healthy
@@ -81,7 +82,25 @@ services:
         condition: service_healthy
       seq:
         condition: service_healthy
+      n8n:
+        condition: service_started
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: modulermonolith-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_HOST: localhost
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678
+      GENERIC_TIMEZONE: Europe/Istanbul
+      N8N_BASIC_AUTH_ACTIVE: "false"
+    volumes:
+      - n8n_data:/home/node/.n8n
 
 volumes:
   postgres_data:
   seq_data:
+  n8n_data:

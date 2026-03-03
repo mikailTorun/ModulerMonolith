@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Module.Auth;
+using Module.Order;
 using Module.Product;
 using ModulerMonolith.Api.OpenApi;
 using ModulerMonolith.Infrastructure;
@@ -36,6 +37,7 @@ try
                 ## Modüller
                 - **Auth** — Keycloak tabanlı JWT kimlik doğrulama
                 - **Products** — Ürün yönetimi (CRUD)
+                - **Orders** — Sipariş yönetimi
 
                 ## Kimlik Doğrulama
                 Korumalı endpoint'ler için Keycloak'tan alınan Bearer token gereklidir.
@@ -68,7 +70,8 @@ try
     builder.Services
         .AddInfrastructure(builder.Configuration)
         .AddAuthModule(builder.Configuration)
-        .AddProductModule(builder.Configuration);
+        .AddProductModule(builder.Configuration)
+        .AddOrderModule(builder.Configuration);
 
     var app = builder.Build();
 
@@ -92,6 +95,7 @@ try
 
     app.MapAuthEndpoints();
     app.MapProductEndpoints();
+    app.MapOrderEndpoints();
 
     app.Run();
 }

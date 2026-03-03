@@ -49,6 +49,13 @@ public static class AuthModule
                 p.RequireAuthenticatedUser()
                  .RequireRole("product-manager", "admin"));
 
+            options.AddPolicy(AuthPolicies.OrderRead, p =>
+                p.RequireAuthenticatedUser());
+
+            options.AddPolicy(AuthPolicies.OrderWrite, p =>
+                p.RequireAuthenticatedUser()
+                 .RequireRole("product-manager", "admin"));
+
             options.AddPolicy(AuthPolicies.Admin, p =>
                 p.RequireAuthenticatedUser()
                  .RequireRole("admin"));

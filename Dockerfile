@@ -5,6 +5,7 @@ COPY ModulerMonolith.Api/ModulerMonolith.Api.csproj ModulerMonolith.Api/
 COPY ModulerMonolith.Core/ModulerMonolith.Core.csproj ModulerMonolith.Core/
 COPY ModulerMonolith.Infrastructure/ModulerMonolith.Infrastructure.csproj ModulerMonolith.Infrastructure/
 COPY Modules/Auth/Module.Auth.csproj Modules/Auth/
+COPY Modules/Order/Module.Order.csproj Modules/Order/
 COPY Modules/Product/Module.Product.csproj Modules/Product/
 
 RUN dotnet restore ModulerMonolith.Api/ModulerMonolith.Api.csproj

@@ -11,6 +11,7 @@
   </Folder>
   <Folder Name="/Modules/">
     <Project Path="Modules/Auth/Module.Auth.csproj" />
+    <Project Path="Modules/Order/Module.Order.csproj" />
     <Project Path="Modules/Product/Module.Product.csproj" />
   </Folder>
 </Solution>
