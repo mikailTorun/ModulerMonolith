@@ -1,0 +1,10 @@
+**/.git
+**/.gitignore
+**/bin
+**/obj
+**/*.user
+**/*.suo
+**/.vs
+**/docker-compose.override.yml
+**/README.md
+**/.dockerignore

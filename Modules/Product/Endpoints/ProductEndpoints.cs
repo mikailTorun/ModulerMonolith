@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Module.Product.Application;
+using ModulerMonolith.Core;
 using ProductEntity = Module.Product.Domain.Product;
 
 namespace Module.Product.Endpoints;
@@ -16,7 +17,8 @@ internal static class ProductEndpoints
             Results.Ok(await service.GetAllAsync()))
             .WithName("GetAllProducts")
             .WithSummary("Tüm ürünleri listeler")
-            .WithDescription("Sistemdeki tüm ürünleri döner. Filtreleme veya sayfalama uygulanmaz.");
+            .WithDescription("Sistemdeki tüm ürünleri döner. Filtreleme veya sayfalama uygulanmaz.")
+            .RequireAuthorization(AuthPolicies.ProductRead);
 
         group.MapGet("/{id:guid}", async (Guid id, IProductService service) =>
         {
@@ -25,7 +27,8 @@ internal static class ProductEndpoints
         })
         .WithName("GetProductById")
         .WithSummary("ID'ye göre ürün getirir")
-        .WithDescription("Verilen GUID'e sahip ürünü döner. Ürün bulunamazsa 404 döner.");
+        .WithDescription("Verilen GUID'e sahip ürünü döner. Ürün bulunamazsa 404 döner.")
+        .RequireAuthorization(AuthPolicies.ProductRead);
 
         group.MapPost("/", async (CreateProductRequest request, IProductService service) =>
         {
@@ -39,7 +42,8 @@ internal static class ProductEndpoints
         })
         .WithName("CreateProduct")
         .WithSummary("Yeni ürün oluşturur")
-        .WithDescription("Yeni bir ürün kaydı oluşturur. ID otomatik atanır, `CreatedAt` alanı sunucu tarafından belirlenir.");
+        .WithDescription("Yeni bir ürün kaydı oluşturur. ID otomatik atanır, `CreatedAt` alanı sunucu tarafından belirlenir.")
+        .RequireAuthorization(AuthPolicies.ProductWrite);
 
         group.MapPut("/{id:guid}", async (Guid id, UpdateProductRequest request, IProductService service) =>
         {
@@ -53,7 +57,8 @@ internal static class ProductEndpoints
         })
         .WithName("UpdateProduct")
         .WithSummary("Ürün bilgilerini günceller")
-        .WithDescription("Mevcut bir ürünün `Name` ve `Price` alanlarını günceller. Ürün bulunamazsa 404 döner.");
+        .WithDescription("Mevcut bir ürünün `Name` ve `Price` alanlarını günceller. Ürün bulunamazsa 404 döner.")
+        .RequireAuthorization(AuthPolicies.ProductWrite);
 
         group.MapDelete("/{id:guid}", async (Guid id, IProductService service) =>
         {
@@ -62,7 +67,8 @@ internal static class ProductEndpoints
         })
         .WithName("DeleteProduct")
         .WithSummary("Ürünü siler")
-        .WithDescription("Verilen ID'ye sahip ürünü kalıcı olarak siler. Ürün mevcut değilse yine 204 döner.");
+        .WithDescription("Verilen ID'ye sahip ürünü kalıcı olarak siler. Ürün mevcut değilse yine 204 döner.")
+        .RequireAuthorization(AuthPolicies.ProductWrite);
 
         return app;
     }

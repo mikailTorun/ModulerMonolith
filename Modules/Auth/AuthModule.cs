@@ -1,10 +1,15 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Module.Auth.Authorization;
+using Module.Auth.Dtos;
 using Module.Auth.Options;
+using Module.Auth.Services;
+using ModulerMonolith.Core;
 
 namespace Module.Auth;
 
@@ -32,7 +37,29 @@ public static class AuthModule
                 };
             });
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(AuthPolicies.Authenticated, p =>
+                p.RequireAuthenticatedUser());
+
+            options.AddPolicy(AuthPolicies.ProductRead, p =>
+                p.RequireAuthenticatedUser());
+
+            options.AddPolicy(AuthPolicies.ProductWrite, p =>
+                p.RequireAuthenticatedUser()
+                 .RequireRole("product-manager", "admin"));
+
+            options.AddPolicy(AuthPolicies.Admin, p =>
+                p.RequireAuthenticatedUser()
+                 .RequireRole("admin"));
+        });
+
+        services.AddTransient<IClaimsTransformation, KeycloakClaimsTransformation>();
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUser, CurrentUser>();
+
+        services.AddHttpClient("keycloak");
+        services.AddScoped<ITokenService, TokenService>();
 
         return services;
     }
@@ -40,6 +67,60 @@ public static class AuthModule
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
+
+        group.MapPost("/token", async (LoginRequest request, ITokenService tokenService, CancellationToken ct) =>
+        {
+            try
+            {
+                var token = await tokenService.LoginAsync(request.Username, request.Password, ct);
+                return Results.Ok(token);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Problem(
+                    title: "Authentication failed",
+                    detail: "Invalid username or password.",
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+        })
+        .WithName("Login")
+        .WithSummary("Kullanıcı girişi")
+        .WithDescription("Kullanıcı adı ve şifre ile Keycloak üzerinden JWT token alır. Dönen `access_token` diğer korumalı endpoint'lerde Bearer token olarak kullanılır.");
+
+        group.MapPost("/token/refresh", async (RefreshTokenRequest request, ITokenService tokenService, CancellationToken ct) =>
+        {
+            try
+            {
+                var token = await tokenService.RefreshAsync(request.RefreshToken, ct);
+                return Results.Ok(token);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Problem(
+                    title: "Token refresh failed",
+                    detail: "The refresh token is invalid or has expired.",
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+        })
+        .WithName("RefreshToken")
+        .WithSummary("Token yenile")
+        .WithDescription("Geçerli bir `refresh_token` ile yeni bir `access_token` alır. Access token süresi dolduğunda bu endpoint kullanılır.");
+
+        group.MapPost("/logout", async (LogoutRequest request, ITokenService tokenService, CancellationToken ct) =>
+        {
+            try
+            {
+                await tokenService.LogoutAsync(request.RefreshToken, ct);
+            }
+            catch
+            {
+                // Logout is best-effort — swallow errors
+            }
+            return Results.NoContent();
+        })
+        .WithName("Logout")
+        .WithSummary("Çıkış yap")
+        .WithDescription("Refresh token'ı Keycloak'ta iptal eder. Başarısız olsa bile 204 döner.");
 
         group.MapGet("/me", (HttpContext ctx) =>
         {

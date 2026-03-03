@@ -1,7 +1,14 @@
 <Solution>
+  <File Path="Dockerfile" />
+  <File Path=".dockerignore" />
+  <File Path="docker-compose.yml" />
   <Project Path="ModulerMonolith.Api/ModulerMonolith.Api.csproj" />
   <Project Path="ModulerMonolith.Core/ModulerMonolith.Core.csproj" />
   <Project Path="ModulerMonolith.Infrastructure/ModulerMonolith.Infrastructure.csproj" />
+  <Folder Name="/docker/">
+    <File Path="docker/keycloak/realm-export.json" />
+    <File Path="docker/postgres/init.sql" />
+  </Folder>
   <Folder Name="/Modules/">
     <Project Path="Modules/Auth/Module.Auth.csproj" />
     <Project Path="Modules/Product/Module.Product.csproj" />
