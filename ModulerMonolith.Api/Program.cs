@@ -81,6 +81,7 @@ try
         db.Database.Migrate();
     }
 
+    app.UseExceptionHandler();
     app.UseSerilogRequestLogging();
 
     if (app.Environment.IsDevelopment())

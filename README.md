@@ -19,8 +19,17 @@ The goal is to prove that **you don't need to start with microservices** to writ
 ```
 ModulerMonolith/
 ├── ModulerMonolith.Api/              # Entry point — Minimal API host
-├── ModulerMonolith.Core/             # Shared kernel — AuthPolicies, ICurrentUser
-├── ModulerMonolith.Infrastructure/   # EF Core DbContext, Outbox Pattern, PostgreSQL
+├── ModulerMonolith.Core/             # Shared kernel
+│   ├── Mediator/                     # ICommand, IQuery, IMediator, ICommandHandler, IQueryHandler
+│   └── Results/                      # Result<T>, Result, ResultError, IResultBase, ErrorType
+├── ModulerMonolith.Infrastructure/   # EF Core, Mediator impl, Outbox, Exception handlers
+│   ├── Mediator/
+│   │   ├── Mediator.cs               # IMediator impl — validation + dispatch + transaction
+│   │   └── TransactionBehavior.cs    # Wraps commands in EF Core transaction
+│   ├── Http/
+│   │   ├── ResultExtensions.cs       # ToApiResult() — maps Result → IResult + status code
+│   │   ├── ValidationExceptionHandler.cs  # 422 for query validation failures
+│   │   └── GeneralExceptionHandler.cs     # 500 for unhandled exceptions
 │   └── Outbox/
 │       ├── OutboxMessage.cs          # Entity persisted to outbox_messages table
 │       ├── OutboxConfiguration.cs    # EF config — jsonb payload column
@@ -41,7 +50,14 @@ ModulerMonolith/
 │   └── Order/                        # Order module (event source)
 │       ├── OrderModule.cs
 │       ├── Domain/                   # Order, OrderItem entities + EF configuration
-│       ├── Application/              # IOrderService, OrderService
+│       ├── Application/
+│       │   ├── Commands/
+│       │   │   ├── CreateOrder/      # Command + Handler + Validator
+│       │   │   ├── ConfirmOrder/     # Command + Handler
+│       │   │   └── CancelOrder/      # Command + Handler
+│       │   └── Queries/
+│       │       ├── GetAllOrders/     # Query + Handler
+│       │       └── GetOrderById/     # Query + Handler + Validator
 │       └── Endpoints/
 ├── docker/
 │   ├── postgres/init.sql             # Creates the keycloak database
@@ -89,6 +105,9 @@ Modules **do not reference each other's assemblies**. Cross-module data needs ar
 | Workflow Orchestration | n8n |
 | Containerization | Docker Compose |
 | Architecture | Modular Monolith |
+| CQRS Dispatch | Custom Mediator (no MediatR) |
+| Validation | FluentValidation 11 (assembly scanning) |
+| API Response | Uniform Result Pattern |
 
 > **Note:** EF Core is pinned to 9.0.4 because Npgsql has no stable release for EF Core 10.x yet.
 
@@ -210,6 +229,134 @@ Policies are defined in `ModulerMonolith.Core/AuthPolicies.cs` and enforced via 
 | `Admin` | Authenticated + role `admin` |
 
 Roles are extracted from the Keycloak `realm_access.roles` claim via `KeycloakClaimsTransformation`.
+
+---
+
+## CQRS & Custom Mediator
+
+Commands and queries are dispatched through a custom `IMediator` implementation — no third-party library (no MediatR).
+
+### Dispatch
+
+```csharp
+// Command — runs inside a transaction, returns Result<T>
+var result = await mediator.SendAsync<CreateOrderCommand, Result<Guid>>(command, ct);
+
+// Query — no transaction, returns raw type
+var order = await mediator.QueryAsync<GetOrderByIdQuery, Domain.Order?>(query, ct);
+```
+
+`IServiceProvider` resolves the handler at runtime via compiled generic type lookup. Zero runtime reflection.
+
+### Transaction Behavior
+
+`TransactionBehavior` wraps every command in an EF Core transaction automatically:
+
+```
+Command dispatched
+    │
+    ├── Validation (FluentValidation) → Fail early if invalid
+    │
+    └── Handler runs
+            │
+            ├── IsSuccess = true  → SaveChanges + Commit
+            └── IsSuccess = false → Rollback (no partial saves)
+```
+
+### Validation
+
+FluentValidation validators are discovered via assembly scanning (`AddValidatorsFromAssembly`).
+
+- **Commands** — validation failure returns `Result.Fail(errors)` directly (no exception)
+- **Queries** — validation failure throws `ValidationException` → caught by `ValidationExceptionHandler` → 422
+
+```csharp
+internal sealed class CreateOrderCommandValidator : AbstractValidator<CreateOrderCommand>
+{
+    public CreateOrderCommandValidator()
+    {
+        RuleFor(x => x.Items).NotEmpty();
+        RuleForEach(x => x.Items).ChildRules(item =>
+        {
+            item.RuleFor(i => i.UnitPrice).GreaterThan(0);
+            item.RuleFor(i => i.Quantity).GreaterThan(0);
+        });
+    }
+}
+```
+
+### Folder-per-Feature Structure
+
+```
+Modules/Order/Application/
+├── Commands/
+│   ├── CreateOrder/
+│   │   ├── CreateOrderCommand.cs
+│   │   ├── CreateOrderCommandHandler.cs
+│   │   └── CreateOrderCommandValidator.cs
+│   ├── ConfirmOrder/
+│   └── CancelOrder/
+└── Queries/
+    ├── GetAllOrders/
+    └── GetOrderById/
+        ├── GetOrderByIdQuery.cs
+        ├── GetOrderByIdQueryHandler.cs
+        └── GetOrderByIdQueryValidator.cs
+```
+
+---
+
+## Uniform Result Pattern
+
+Every endpoint — success or failure — returns the same JSON shape:
+
+```json
+{
+  "isSuccess": true | false,
+  "data": <T> | null,
+  "errors": [{ "property": "...", "message": "..." }],
+  "messages": ["..."]
+}
+```
+
+### Result Types
+
+```csharp
+// Void command (no return value)
+Result.Ok()
+Result.Ok("İşlem tamamlandı.")
+Result.Fail("Hata mesajı")
+Result.NotFound("Sipariş bulunamadı.")
+Result.Conflict("Zaten mevcut.")
+
+// Valued command / query
+Result<T>.Ok(data)
+Result<T>.Ok(data, "Oluşturuldu.", "E-posta gönderildi.")
+Result<T>.Fail("Hata mesajı")
+Result<T>.NotFound("Bulunamadı.")
+```
+
+### HTTP Status Mapping
+
+| Scenario | HTTP Status | `isSuccess` |
+|---|---|---|
+| Success | 200 / 201 | `true` |
+| Not found | 404 | `false` |
+| Conflict | 409 | `false` |
+| Validation error | 422 | `false` |
+| Unauthorized | 401 | `false` |
+| Unhandled exception | 500 | `false` |
+
+### Error Handling Pipeline
+
+```
+Request
+    │
+    ├── ValidationExceptionHandler  → 422  (query validation failures)
+    └── GeneralExceptionHandler     → 500  (unhandled exceptions, safe message only)
+```
+
+The `ErrorType` field drives the HTTP status code mapping internally and is excluded from the JSON response (`[JsonIgnore]`). Clients never see it.
 
 ---
 
@@ -509,6 +656,10 @@ When running inside Docker, environment variables in `docker-compose.yml` overri
 - **Vertical Slice per Module** — each module owns its domain, application logic, and HTTP endpoints
 - **Explicit Module Registration** — no runtime assembly scanning in `Program.cs`
 - **EF Core per Module** — each module registers its own `IEntityTypeConfiguration<T>` via `AppDbContext.RegisterModuleAssembly()`
+- **CQRS with custom Mediator** — no MediatR dependency; two-generic dispatch with zero runtime reflection
+- **TransactionBehavior pipeline** — commands automatically wrapped in EF Core transactions; rollback on failure
+- **FluentValidation assembly scanning** — validators discovered automatically, applied before handler dispatch
+- **Uniform Result Pattern** — all endpoints return `{ isSuccess, data, errors, messages }`; HTTP status driven by `ErrorType`
 - **Outbox Pattern** — events and business state committed in one transaction, delivered reliably by a background processor
 - **Saga Orchestration** — compensating transactions coordinated externally (n8n), not via direct service-to-service calls
 - **Module Isolation** — modules share no assembly references; cross-module data resolved via snapshot or events

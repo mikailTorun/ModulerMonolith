@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Module.Product.Application;
 using ModulerMonolith.Core;
+using ModulerMonolith.Core.Results;
 using ProductEntity = Module.Product.Domain.Product;
 
 namespace Module.Product.Endpoints;
@@ -14,20 +15,26 @@ internal static class ProductEndpoints
         var group = app.MapGroup("/api/products").WithTags("Products");
 
         group.MapGet("/", async (IProductService service) =>
-            Results.Ok(await service.GetAllAsync()))
-            .WithName("GetAllProducts")
-            .WithSummary("Tüm ürünleri listeler")
-            .WithDescription("Sistemdeki tüm ürünleri döner. Filtreleme veya sayfalama uygulanmaz.")
-            .RequireAuthorization(AuthPolicies.ProductRead);
+        {
+            var data = await service.GetAllAsync();
+            return Results.Ok(Result<IEnumerable<ProductEntity>>.Ok(data));
+        })
+        .WithName("GetAllProducts")
+        .WithSummary("Tüm ürünleri listeler")
+        .Produces<Result<IEnumerable<ProductEntity>>>()
+        .RequireAuthorization(AuthPolicies.ProductRead);
 
         group.MapGet("/{id:guid}", async (Guid id, IProductService service) =>
         {
             var product = await service.GetByIdAsync(id);
-            return product is not null ? Results.Ok(product) : Results.NotFound();
+            return product is not null
+                ? Results.Ok(Result<ProductEntity>.Ok(product))
+                : Results.Json(Result<ProductEntity>.NotFound("Ürün bulunamadı."), statusCode: StatusCodes.Status404NotFound);
         })
         .WithName("GetProductById")
         .WithSummary("ID'ye göre ürün getirir")
-        .WithDescription("Verilen GUID'e sahip ürünü döner. Ürün bulunamazsa 404 döner.")
+        .Produces<Result<ProductEntity>>()
+        .Produces<Result<ProductEntity>>(StatusCodes.Status404NotFound)
         .RequireAuthorization(AuthPolicies.ProductRead);
 
         group.MapPost("/", async (CreateProductRequest request, IProductService service) =>
@@ -38,36 +45,38 @@ internal static class ProductEndpoints
                 Name = request.Name,
                 Price = request.Price,
             });
-            return Results.Created($"/api/products/{product.Id}", product);
+            return Results.Json(Result<ProductEntity>.Ok(product, "Ürün başarıyla oluşturuldu.", "Ürün sayısı güncellendi."), statusCode: StatusCodes.Status201Created);
         })
         .WithName("CreateProduct")
         .WithSummary("Yeni ürün oluşturur")
-        .WithDescription("Yeni bir ürün kaydı oluşturur. ID otomatik atanır, `CreatedAt` alanı sunucu tarafından belirlenir.")
+        .Produces<Result<ProductEntity>>(StatusCodes.Status201Created)
         .RequireAuthorization(AuthPolicies.ProductWrite);
 
         group.MapPut("/{id:guid}", async (Guid id, UpdateProductRequest request, IProductService service) =>
         {
             var existing = await service.GetByIdAsync(id);
-            if (existing is null) return Results.NotFound();
+            if (existing is null)
+                return Results.Json(Result<ProductEntity>.NotFound("Ürün bulunamadı."), statusCode: StatusCodes.Status404NotFound);
 
             existing.Name = request.Name;
             existing.Price = request.Price;
             await service.UpdateAsync(existing);
-            return Results.NoContent();
+            return Results.Ok(Result.Ok());
         })
         .WithName("UpdateProduct")
         .WithSummary("Ürün bilgilerini günceller")
-        .WithDescription("Mevcut bir ürünün `Name` ve `Price` alanlarını günceller. Ürün bulunamazsa 404 döner.")
+        .Produces<Result>()
+        .Produces<Result<ProductEntity>>(StatusCodes.Status404NotFound)
         .RequireAuthorization(AuthPolicies.ProductWrite);
 
         group.MapDelete("/{id:guid}", async (Guid id, IProductService service) =>
         {
             await service.DeleteAsync(id);
-            return Results.NoContent();
+            return Results.Ok(Result.Ok());
         })
         .WithName("DeleteProduct")
         .WithSummary("Ürünü siler")
-        .WithDescription("Verilen ID'ye sahip ürünü kalıcı olarak siler. Ürün mevcut değilse yine 204 döner.")
+        .Produces<Result>()
         .RequireAuthorization(AuthPolicies.ProductWrite);
 
         return app;
