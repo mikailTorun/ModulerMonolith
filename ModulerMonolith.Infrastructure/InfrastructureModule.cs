@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +30,23 @@ public static class InfrastructureModule
         services.AddProblemDetails();
         services.AddExceptionHandler<ValidationExceptionHandler>();
         services.AddExceptionHandler<GeneralExceptionHandler>();
+
+        services.AddHttpLogging(options =>
+        {
+            options.LoggingFields =
+                HttpLoggingFields.RequestMethod |
+                HttpLoggingFields.RequestPath |
+                HttpLoggingFields.RequestQuery |
+                HttpLoggingFields.RequestBody |
+                HttpLoggingFields.ResponseStatusCode |
+                HttpLoggingFields.ResponseBody |
+                HttpLoggingFields.Duration;
+
+            options.MediaTypeOptions.AddText("application/json");
+            options.RequestBodyLogLimit  = 4096;
+            options.ResponseBodyLogLimit = 4096;
+            options.CombineLogs = true;
+        });
 
         return services;
     }

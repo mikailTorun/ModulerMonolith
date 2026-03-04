@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Routing;
 using Module.Order.Application.Commands;
 using Module.Order.Application.Queries;
@@ -24,6 +25,7 @@ internal static class OrderEndpoints
         .WithName("GetAllOrders")
         .WithSummary("Tüm siparişleri listeler")
         .Produces<Result<IEnumerable<Domain.Order>>>()
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.OrderRead);
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator mediator, CancellationToken ct) =>
@@ -37,6 +39,7 @@ internal static class OrderEndpoints
         .WithSummary("ID'ye göre sipariş getirir")
         .Produces<Result<Domain.Order>>()
         .Produces<Result<Domain.Order>>(StatusCodes.Status404NotFound)
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.OrderRead);
 
         group.MapPost("/", async (CreateOrderRequest request, IMediator mediator, ICurrentUser currentUser, CancellationToken ct) =>
@@ -52,6 +55,7 @@ internal static class OrderEndpoints
         .WithSummary("Yeni sipariş oluşturur")
         .Produces<Result<Guid>>(StatusCodes.Status201Created)
         .Produces<Result<Guid>>(StatusCodes.Status422UnprocessableEntity)
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.Authenticated);
 
         group.MapPut("/{id:guid}/confirm", async (Guid id, IMediator mediator, CancellationToken ct) =>
@@ -63,6 +67,7 @@ internal static class OrderEndpoints
         .WithSummary("Siparişi onaylar")
         .Produces<Result<string>>()
         .Produces<Result<string>>(StatusCodes.Status404NotFound)
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.OrderWrite);
 
         group.MapPut("/{id:guid}/cancel", async (Guid id, IMediator mediator, CancellationToken ct) =>
@@ -74,6 +79,7 @@ internal static class OrderEndpoints
         .WithSummary("Siparişi iptal eder")
         .Produces<Result>()
         .Produces<Result>(StatusCodes.Status404NotFound)
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.Authenticated);
 
         return app;

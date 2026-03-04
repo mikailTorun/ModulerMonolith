@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Routing;
 using Module.Product.Application;
 using ModulerMonolith.Core;
@@ -22,6 +23,7 @@ internal static class ProductEndpoints
         .WithName("GetAllProducts")
         .WithSummary("Tüm ürünleri listeler")
         .Produces<Result<IEnumerable<ProductEntity>>>()
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.ProductRead);
 
         group.MapGet("/{id:guid}", async (Guid id, IProductService service) =>
@@ -35,6 +37,7 @@ internal static class ProductEndpoints
         .WithSummary("ID'ye göre ürün getirir")
         .Produces<Result<ProductEntity>>()
         .Produces<Result<ProductEntity>>(StatusCodes.Status404NotFound)
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.ProductRead);
 
         group.MapPost("/", async (CreateProductRequest request, IProductService service) =>
@@ -49,7 +52,9 @@ internal static class ProductEndpoints
         })
         .WithName("CreateProduct")
         .WithSummary("Yeni ürün oluşturur")
+        .WithDescription("Bu endpoint yeni bir ürün oluşturur. Ürün adı ve fiyatı sağlanmalıdır.")
         .Produces<Result<ProductEntity>>(StatusCodes.Status201Created)
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.ProductWrite);
 
         group.MapPut("/{id:guid}", async (Guid id, UpdateProductRequest request, IProductService service) =>
@@ -67,6 +72,7 @@ internal static class ProductEndpoints
         .WithSummary("Ürün bilgilerini günceller")
         .Produces<Result>()
         .Produces<Result<ProductEntity>>(StatusCodes.Status404NotFound)
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.ProductWrite);
 
         group.MapDelete("/{id:guid}", async (Guid id, IProductService service) =>
@@ -77,6 +83,7 @@ internal static class ProductEndpoints
         .WithName("DeleteProduct")
         .WithSummary("Ürünü siler")
         .Produces<Result>()
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.ProductWrite);
 
         return app;

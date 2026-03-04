@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -92,7 +93,8 @@ public static class AuthModule
         })
         .WithName("Login")
         .WithSummary("Kullanıcı girişi")
-        .WithDescription("Kullanıcı adı ve şifre ile Keycloak üzerinden JWT token alır. Dönen `access_token` diğer korumalı endpoint'lerde Bearer token olarak kullanılır.");
+        .WithDescription("Kullanıcı adı ve şifre ile Keycloak üzerinden JWT token alır. Dönen `access_token` diğer korumalı endpoint'lerde Bearer token olarak kullanılır.")
+        .WithHttpLogging(HttpLoggingFields.RequestMethod | HttpLoggingFields.RequestPath | HttpLoggingFields.ResponseStatusCode | HttpLoggingFields.Duration);
 
         group.MapPost("/token/refresh", async (RefreshTokenRequest request, ITokenService tokenService, CancellationToken ct) =>
         {
@@ -111,7 +113,8 @@ public static class AuthModule
         })
         .WithName("RefreshToken")
         .WithSummary("Token yenile")
-        .WithDescription("Geçerli bir `refresh_token` ile yeni bir `access_token` alır. Access token süresi dolduğunda bu endpoint kullanılır.");
+        .WithDescription("Geçerli bir `refresh_token` ile yeni bir `access_token` alır. Access token süresi dolduğunda bu endpoint kullanılır.")
+        .WithHttpLogging(HttpLoggingFields.RequestMethod | HttpLoggingFields.RequestPath | HttpLoggingFields.ResponseStatusCode | HttpLoggingFields.Duration);
 
         group.MapPost("/logout", async (LogoutRequest request, ITokenService tokenService, CancellationToken ct) =>
         {
@@ -127,7 +130,8 @@ public static class AuthModule
         })
         .WithName("Logout")
         .WithSummary("Çıkış yap")
-        .WithDescription("Refresh token'ı Keycloak'ta iptal eder. Başarısız olsa bile 204 döner.");
+        .WithDescription("Refresh token'ı Keycloak'ta iptal eder. Başarısız olsa bile 204 döner.")
+        .WithHttpLogging(HttpLoggingFields.RequestMethod | HttpLoggingFields.RequestPath | HttpLoggingFields.ResponseStatusCode | HttpLoggingFields.Duration);
 
         group.MapGet("/me", (HttpContext ctx) =>
         {
@@ -137,7 +141,8 @@ public static class AuthModule
         .RequireAuthorization()
         .WithName("GetCurrentUser")
         .WithSummary("Mevcut kullanıcı bilgilerini getirir")
-        .WithDescription("Geçerli Bearer token içindeki tüm claim'leri döner. Bu endpoint yalnızca kimliği doğrulanmış kullanıcılar tarafından çağrılabilir.");
+        .WithDescription("Geçerli Bearer token içindeki tüm claim'leri döner. Bu endpoint yalnızca kimliği doğrulanmış kullanıcılar tarafından çağrılabilir.")
+        .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders);
 
         return app;
     }

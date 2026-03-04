@@ -82,6 +82,7 @@ try
     }
 
     app.UseExceptionHandler();
+    app.UseHttpLogging();
     app.UseSerilogRequestLogging();
 
     if (app.Environment.IsDevelopment())
