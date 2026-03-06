@@ -8,5 +8,5 @@ public interface IProductService
     Task<ProductEntity?> GetByIdAsync(Guid id);
     Task<ProductEntity> CreateAsync(ProductEntity product);
     Task UpdateAsync(ProductEntity product);
-    Task DeleteAsync(Guid id);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
 }

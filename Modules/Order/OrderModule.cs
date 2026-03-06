@@ -29,6 +29,9 @@ public static class OrderModule
         // Validators — assembly scanning (internal tipler dahil)
         services.AddValidatorsFromAssembly(typeof(OrderModule).Assembly, includeInternalTypes: true);
 
+        // Module contract — diğer modüller bu interface üzerinden Order modülüne erişir
+        services.AddScoped<IOrderModuleApi, OrderModuleApi>();
+
         return services;
     }
 

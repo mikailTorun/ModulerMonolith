@@ -75,9 +75,9 @@ internal static class ProductEndpoints
         .WithHttpLogging(HttpLoggingFields.All & ~HttpLoggingFields.RequestHeaders & ~HttpLoggingFields.ResponseHeaders)
         .RequireAuthorization(AuthPolicies.ProductWrite);
 
-        group.MapDelete("/{id:guid}", async (Guid id, IProductService service) =>
+        group.MapDelete("/{id:guid}", async (Guid id, IProductService service, CancellationToken ct) =>
         {
-            await service.DeleteAsync(id);
+            await service.DeleteAsync(id, ct);
             return Results.Ok(Result.Ok());
         })
         .WithName("DeleteProduct")

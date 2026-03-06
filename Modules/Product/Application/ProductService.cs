@@ -1,41 +1,42 @@
 using Microsoft.EntityFrameworkCore;
+using Module.Order;
+using ModulerMonolith.Core.Results;
 using ModulerMonolith.Infrastructure.Persistence;
 using ProductEntity = Module.Product.Domain.Product;
 
 namespace Module.Product.Application;
 
-internal sealed class ProductService : IProductService
+internal sealed class ProductService(AppDbContext context, IOrderModuleApi orderApi) : IProductService
 {
-    private readonly AppDbContext _context;
-
-    public ProductService(AppDbContext context) => _context = context;
-
     public async Task<IEnumerable<ProductEntity>> GetAllAsync() =>
-        await _context.Set<ProductEntity>().ToListAsync();
+        await context.Set<ProductEntity>().ToListAsync();
 
     public Task<ProductEntity?> GetByIdAsync(Guid id) =>
-        _context.Set<ProductEntity>().FindAsync(id).AsTask();
+        context.Set<ProductEntity>().FindAsync(id).AsTask();
 
     public async Task<ProductEntity> CreateAsync(ProductEntity product)
     {
-        _context.Set<ProductEntity>().Add(product);
-        await _context.SaveChangesAsync();
+        context.Set<ProductEntity>().Add(product);
+        await context.SaveChangesAsync();
         return product;
     }
 
     public async Task UpdateAsync(ProductEntity product)
     {
-        _context.Set<ProductEntity>().Update(product);
-        await _context.SaveChangesAsync();
+        context.Set<ProductEntity>().Update(product);
+        await context.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(Guid id)
+    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var entity = await _context.Set<ProductEntity>().FindAsync(id);
+        if (await orderApi.HasActiveOrdersForProductAsync(id, ct))
+            throw new ValidationException([new ResultError("Id", "Aktif siparişi olan ürün silinemez.")]);
+
+        var entity = await context.Set<ProductEntity>().FindAsync([id], ct);
         if (entity is not null)
         {
-            _context.Set<ProductEntity>().Remove(entity);
-            await _context.SaveChangesAsync();
+            context.Set<ProductEntity>().Remove(entity);
+            await context.SaveChangesAsync(ct);
         }
     }
 }

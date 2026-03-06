@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\ModulerMonolith.Core\ModulerMonolith.Core.csproj" />
     <ProjectReference Include="..\..\ModulerMonolith.Infrastructure\ModulerMonolith.Infrastructure.csproj" />
+    <ProjectReference Include="..\Order\Module.Order.csproj" />
   </ItemGroup>
 
 </Project>
